@@ -1,0 +1,166 @@
+<html>
+  <head>
+    <title>Pixel Wars</title>
+  </head>
+  <body>
+
+    
+    <div>
+      Scale
+      <input id="scale" type="range" min="1" max="10" step="1" value="1">
+    </div>
+
+    <br>
+
+    <canvas id="canvas" width="256" height="256" style="border: 1px solid black;"></canvas>
+    
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/web3/1.7.4/web3.min.js" integrity="sha512-oMd9Re3VgJcXuZJn9DN6X7S7JUc7xLYZ2UyZ85Mm/xzaW3lwBr4fV2zjuu/n5jY/Of/2JOx35CTa6zvQNxb31Q==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+    <script>
+      const abi = [
+	{
+		"inputs": [],
+		"stateMutability": "nonpayable",
+		"type": "constructor"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "uint8",
+				"name": "x",
+				"type": "uint8"
+			},
+			{
+				"internalType": "uint8",
+				"name": "y",
+				"type": "uint8"
+			},
+			{
+				"internalType": "bool",
+				"name": "color",
+				"type": "bool"
+			}
+		],
+		"name": "paint",
+		"outputs": [],
+		"stateMutability": "nonpayable",
+		"type": "function"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "uint8",
+				"name": "",
+				"type": "uint8"
+			}
+		],
+		"name": "pixels",
+		"outputs": [
+			{
+				"internalType": "uint256",
+				"name": "",
+				"type": "uint256"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	}
+]
+
+      const address = "0x7B23714895C3E100A7Ba571C458E948A40e72C41"
+      let scale = document.getElementById("scale").value;
+      var canvas = document.getElementById("canvas");
+      var context = canvas.getContext('2d');
+
+      document.getElementById("scale").addEventListener("input", function(e) {
+        scale = e.target.value;
+        context.canvas.width = 256 * scale;
+        context.canvas.height = 256 * scale;
+      });
+
+      async function loadWeb3() {
+        if (window.ethereum) {
+          window.web3 = new Web3(window.ethereum);
+          window.ethereum.enable();
+        }
+      }
+
+      async function loadContract() {
+        return await new window.web3.eth.Contract(abi, address);
+      }
+
+      async function getCurrentAccount() {
+        const accounts = await ethereum.request({ method: 'eth_requestAccounts' });
+        return accounts[0];
+      }
+
+      function drawPixel(context, x, y, color) {
+        var roundedX = Math.round(x);
+        var roundedY = Math.round(y);
+        context.fillStyle = color || '#000';
+        context.fillRect(roundedX * scale, roundedY * scale, scale, scale);
+      }
+
+      async function run() {
+        context.canvas.width = 256 * scale;
+        context.canvas.height = 256 * scale;
+        canvas.addEventListener("mouseup", function(e) { 
+          var cRect = canvas.getBoundingClientRect();        // Gets CSS pos, and width/height
+          var x = Math.floor((e.clientX - cRect.left) / scale) ;  // Subtract the 'left' of the canvas 
+          var y = Math.floor((e.clientY - cRect.top) / scale);   // from the X/Y positions to make  
+          if (e.which == 1)
+          {
+            paint(x, y, true);
+          }
+          else
+          {
+            paint(x, y, false);
+          }
+        });
+
+        await loadWeb3();
+        window.contract = await loadContract();
+        window.account = await getCurrentAccount();
+        setInterval(draw, 1000);
+      }
+
+      async function drawRow(context, i)
+      {
+        let row = await window.contract.methods.pixels(i).call();
+        // console.log(row);
+        for (let j = 0; j < 256; j++)
+        {
+          let pixel = (row / (2 ** j)) & 0x1;
+          drawPixel(context, j, i, pixel != 1 ? 'black' : 'white');
+        }
+      }
+
+      async function paint(x, y, color)
+      {
+        console.log(x, y, color);
+        const tx = {
+          from: window.account,
+          to: address,
+          value: "0",
+          data: window.contract.methods.paint(x, y, color).encodeABI()
+        }
+      
+        const txHash = await window.ethereum.request({
+          method: 'eth_sendTransaction',
+          params: [tx]
+        });
+      }
+
+      function draw()
+      {
+        for (let i = 0; i < 256; i++)
+        {
+          drawRow(context, i);
+        }
+      }
+
+      if (typeof window.ethereum !== 'undefined') {
+        run()
+      }
+    </script>
+  </body>
+</html>
