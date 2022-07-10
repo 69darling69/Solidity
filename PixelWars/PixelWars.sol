@@ -5,7 +5,6 @@ pragma solidity ^0.8.7;
 contract PixelWars {
 
     mapping(uint8 => uint256) public pixels;
-    uint256 cost = 0.00001 ether;
 
     constructor() {}
 
